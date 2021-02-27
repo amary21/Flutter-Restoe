@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:restoe/common/styles.dart';
-import 'package:restoe/data/models/restaurants.dart';
+import 'package:restoe/data/api/api_service.dart';
+import 'package:restoe/data/models/resto_result.dart';
 import 'package:restoe/view/resto_detail_page.dart';
+import 'package:restoe/widgets/list_item.dart';
 
-class RestoListPage extends StatelessWidget {
+class RestoListPage extends StatefulWidget {
   static const routeName = '/resto_list';
+
+  @override
+  _RestoListPageState createState() => _RestoListPageState();
+}
+
+class _RestoListPageState extends State<RestoListPage> {
+  Future<RestoResult> _result;
+
+  @override
+  void initState() {
+    _result = ApiServices().listRestaurants();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +55,7 @@ class RestoListPage extends StatelessWidget {
             child: Card(
               margin: EdgeInsets.all(0),
               child: Container(
-                  margin: EdgeInsets.only(left: 16.0, top: 8.0),
+                  margin: EdgeInsets.only(left: 16.0, top: 16.0),
                   child: _buildList(context)),
               shape: BeveledRectangleBorder(
                 borderRadius: BorderRadius.only(
@@ -55,73 +70,45 @@ class RestoListPage extends StatelessWidget {
   }
 
   Widget _buildList(BuildContext context) {
-    return FutureBuilder<String>(
-      future: DefaultAssetBundle.of(context)
-          .loadString('assets/local_restaurant.json'),
-      builder: (context, snapshot) {
-        final List<Restaurants> resto =
-            Restaurants().parseRestaurants(snapshot.data);
-        return ListView.builder(
-          itemCount: resto.length,
-          itemBuilder: (context, index) {
-            return _buildRestoItem(context, resto[index]);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildRestoItem(BuildContext context, Restaurants restaurant) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8.0, left: 16.0),
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, RestoDetailPage.routeName,
-              arguments: restaurant);
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20.0),
-          ),
-          child: Container(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  flex: 3,
-                  child: Hero(
-                    tag: restaurant.pictureId,
-                    child: Image.network(
-                      restaurant.pictureId,
+    return FutureBuilder(
+      future: _result,
+      builder: (context, AsyncSnapshot<RestoResult> snapshot) {
+        var state = snapshot.connectionState;
+        switch (state) {
+          case ConnectionState.none:
+          case ConnectionState.active:
+          case ConnectionState.waiting:
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          case ConnectionState.done:
+            if (snapshot.hasData) {
+              return ListView.builder(
+                itemCount: snapshot.data.restaurants.length,
+                itemBuilder: (context, index) {
+                  var restaurant = snapshot.data.restaurants[index];
+                  return ListItem(
+                    restaurant: restaurant,
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      RestoDetailPage.routeName,
+                      arguments: restaurant.id,
                     ),
-                  ),
-                ),
-                Expanded(
-                  flex: 4,
-                  child: ListTile(
-                    title: Text(restaurant.name),
-                    subtitle: Text(restaurant.city),
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-      decoration: BoxDecoration(
-        color: primaryColor,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20.0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.5),
-            spreadRadius: 5,
-            blurRadius: 7,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+                  );
+                },
+              );
+            } else if (snapshot.hasError) {
+              return Center(
+                child: Image.asset('assets/images/foods.png'),
+              );
+            } else {
+              return Text('');
+            }
+            break;
+          default:
+            return Text('');
+        }
+      },
     );
   }
 }

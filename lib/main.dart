@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
         RestoSplashPage.routeName: (context) => RestoSplashPage(),
         RestoListPage.routeName: (context) => RestoListPage(),
         RestoDetailPage.routeName: (context) => RestoDetailPage(
-              restaurants: ModalRoute.of(context).settings.arguments,
+              id: ModalRoute.of(context).settings.arguments,
             ),
       },
     );

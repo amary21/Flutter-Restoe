@@ -1,147 +1,117 @@
 import 'package:flutter/material.dart';
-import 'package:restoe/data/models/menus.dart';
-import 'package:restoe/data/models/restaurants.dart';
+import 'package:restoe/data/api/api_service.dart';
+import 'package:restoe/data/models/resto_detail_result.dart';
+import 'package:restoe/widgets/info_image_appbar.dart';
+import 'package:restoe/widgets/info_item_detail.dart';
+import 'package:restoe/widgets/info_item_subtitle.dart';
+import 'package:restoe/widgets/info_item_title.dart';
+import 'package:restoe/widgets/list_menu.dart';
 
-class RestoDetailPage extends StatelessWidget {
+class RestoDetailPage extends StatefulWidget {
   static const routeName = '/resto_detail';
 
-  final Restaurants restaurants;
+  final String id;
 
-  const RestoDetailPage({@required this.restaurants});
+  const RestoDetailPage({@required this.id});
+
+  @override
+  _RestoDetailPageState createState() => _RestoDetailPageState();
+}
+
+class _RestoDetailPageState extends State<RestoDetailPage> {
+  Future<RestoDetailResult> _result;
+
+  @override
+  void initState() {
+    _result = ApiServices().detailRestaurant(id: widget.id);
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, isScrolled) {
-          return [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 250,
-              flexibleSpace: FlexibleSpaceBar(
-                background: ClipRRect(
-                  child: Stack(
-                    children: <Widget>[
-                      Hero(
-                        tag: restaurants.pictureId,
-                        child: Image.network(
-                          restaurants.pictureId,
-                          fit: BoxFit.cover,
-                          height: MediaQuery.of(context).size.width * 0.8,
-                          width: MediaQuery.of(context).size.width,
+      body: _buildDetail(context),
+    );
+  }
+
+  Widget _buildDetail(BuildContext context) {
+    return FutureBuilder(
+      future: _result,
+      builder: (context, AsyncSnapshot<RestoDetailResult> snapshot) {
+        var state = snapshot.connectionState;
+        switch (state) {
+          case ConnectionState.none:
+          case ConnectionState.active:
+          case ConnectionState.waiting:
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          case ConnectionState.done:
+            if (snapshot.hasData) {
+              return NestedScrollView(
+                headerSliverBuilder: (context, isScrolled) {
+                  return [
+                    InfoImageAppbar(
+                      restaurant: snapshot.data.restaurant,
+                    )
+                  ];
+                },
+                body: Container(
+                  margin: EdgeInsets.all(16.0),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        InfoItemDetail(
+                          icon: Icon(Icons.location_on),
+                          name: snapshot.data.restaurant.city ?? "",
                         ),
-                      ),
-                      Container(
-                        height: MediaQuery.of(context).size.width * 0.8,
-                        width: MediaQuery.of(context).size.width,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              const Color(0xCC000000),
-                              const Color(0x00000000),
-                              const Color(0x00000000),
-                              const Color(0xCC000000),
-                            ],
+                        InfoItemDetail(
+                          icon: Icon(Icons.location_on),
+                          name:
+                              snapshot.data.restaurant.rating.toString() ?? "",
+                        ),
+                        InfoItemTitle(
+                          title: "Description",
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Text(
+                            snapshot.data.restaurant.description ?? "",
+                            style: Theme.of(context).textTheme.bodyText1,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(28),
-                    bottomRight: Radius.circular(28),
-                  ),
-                ),
-                title: Text(
-                  restaurants.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headline5
-                      .apply(color: Colors.white),
-                ),
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-                centerTitle: true,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(28),
-                  bottomRight: Radius.circular(28),
-                ),
-              ),
-            ),
-          ];
-        },
-        body: Container(
-          margin: EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _buildInfoDetail(
-                    context, Icon(Icons.location_on), restaurants.city),
-                _buildInfoDetail(
-                    context, Icon(Icons.star), restaurants.rating.toString()),
-                _buildTitleInfo(context, "Description"),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    restaurants.description,
-                    style: Theme.of(context).textTheme.bodyText1,
+                        InfoItemTitle(
+                          title: "Menus",
+                        ),
+                        InfoItemSubtitle(
+                          title: "Foods",
+                        ),
+                        _buildListMenu(true, snapshot.data.restaurant.menus,
+                            'assets/images/foods.png'),
+                        InfoItemSubtitle(
+                          title: "Drinks",
+                        ),
+                        _buildListMenu(false, snapshot.data.restaurant.menus,
+                            'assets/images/drinks.png'),
+                      ],
+                    ),
                   ),
                 ),
-                _buildTitleInfo(context, "Menus"),
-                _buildSubTitleInfo(context, "Foods"),
-                _buildListMenu(
-                    true, restaurants.menu, 'assets/images/foods.png'),
-                _buildSubTitleInfo(context, "Drinks"),
-                _buildListMenu(
-                    false, restaurants.menu, 'assets/images/drinks.png'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoDetail(BuildContext context, Icon icon, String name) {
-    return Row(
-      children: [
-        icon,
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(
-            name,
-            style: Theme.of(context).textTheme.headline5,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTitleInfo(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Text(
-        title,
-        style: Theme.of(context)
-            .textTheme
-            .headline5
-            .apply(color: Colors.grey[700]),
-      ),
-    );
-  }
-
-  Widget _buildSubTitleInfo(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.headline6,
-      ),
+              );
+            } else if (snapshot.hasError) {
+              return Center(
+                child: Image.asset('assets/images/foods.png'),
+              );
+            } else {
+              return Text('');
+            }
+            break;
+          default:
+            return Text('');
+        }
+      },
     );
   }
 
@@ -154,42 +124,10 @@ class RestoDetailPage extends StatelessWidget {
         shrinkWrap: true,
         itemCount: isFood ? menus.foods.length : menus.drinks.length,
         itemBuilder: (context, index) {
-          return _buildMenus(
-              context: context,
+          return ListMenu(
               name: isFood ? menus.foods[index].name : menus.drinks[index].name,
               imageAsset: imgAssets);
         },
-      ),
-    );
-  }
-
-  Widget _buildMenus({BuildContext context, String name, String imageAsset}) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          child: Stack(
-            children: [
-              Image.asset(
-                imageAsset,
-                color: Color.fromRGBO(128, 128, 128, 1),
-                colorBlendMode: BlendMode.modulate,
-              ),
-              Container(
-                alignment: Alignment.bottomLeft,
-                margin: EdgeInsets.all(16.0),
-                child: Text(
-                  name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headline6
-                      .apply(color: Colors.white),
-                ),
-              )
-            ],
-          ),
-        ),
       ),
     );
   }
